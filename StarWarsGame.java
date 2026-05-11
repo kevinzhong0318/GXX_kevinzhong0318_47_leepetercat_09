@@ -2,276 +2,160 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Random;
 import javax.swing.*;
 
 public class StarWarsGame extends JFrame {
-    private CirclePanel circlePanel;
-
     public StarWarsGame() {
-        setTitle("Star Wars Shooter - UI Safety Version");
+        setTitle("Star Wars Shooter - Fully Refactored");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        circlePanel = new CirclePanel();
-        add(circlePanel);
+        add(new GamePanel());
         setVisible(true);
     }
 
-    // --- 背景星星 ---
-    class Star {
-        double x, y, speed;
-        int size;
-        public Star(int pw, int ph) {
-            Random rand = new Random();
-            this.x = rand.nextDouble() * pw;
-            this.y = rand.nextDouble() * ph;
-            this.speed = 1 + rand.nextDouble() * 2;
-            this.size = 2 + rand.nextInt(2);
-        }
-        public void update(int ph) {
-            y += speed;
-            if (y > ph) { y = 0; x = new Random().nextDouble() * 800; }
-        }
-        public void draw(Graphics g) { g.fillOval((int)x, (int)y, size, size); }
-    }
-
-    // --- 子彈類別 ---
-    class Bullet {
-        double x, y, vx, vy;
-        int width = 8, height = 25; 
-        boolean isEnemy; 
-        private static Image pBulletImg, eBulletImg;
-
-        public Bullet(double x, double y, double vx, double vy, boolean isEnemy) {
-            this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.isEnemy = isEnemy;
-            if (pBulletImg == null) pBulletImg = new ImageIcon("image/green_blaster.jpg").getImage();
-            if (eBulletImg == null) eBulletImg = new ImageIcon("image/red_blaster.jpg").getImage();
-        }
-
-        public void update() { x += vx; y += vy; }
-
-        public void draw(Graphics2D g2d) {
-            Image img = isEnemy ? eBulletImg : pBulletImg;
-            if (img != null && img.getWidth(null) > 0) {
-                g2d.drawImage(img, (int)x - width/2, (int)y, width, height, null);
-            } else {
-                g2d.setColor(isEnemy ? Color.RED : Color.CYAN);
-                g2d.fillRect((int)x - width/2, (int)y, width, height);
-            }
-        }
-
-        public Rectangle getBounds() {
-            return new Rectangle((int)x - width/2, (int)y, width, height);
-        }
-    }
-
-    // --- 敵人類別 ---
-    class Enemy {
-        double x, y;
-        int size = 50;
-        int shootTimer = 0;
-        int shootInterval = 150; 
-        private static Image enemyImg;
-
-        public Enemy(double x, double y) {
-            this.x = x; this.y = y;
-            if (enemyImg == null) enemyImg = new ImageIcon("image/enemy2_1.png").getImage();
-        }
-
-        public void update(ArrayList<Bullet> bullets) {
-            x += Math.sin(System.currentTimeMillis() / 600.0) * 1.5;
-            shootTimer++;
-            if (shootTimer >= shootInterval) {
-                bullets.add(new Bullet(x + size/2, y + size, 0, 5, true));
-                shootTimer = 0;
-            }
-        }
-
-        public void draw(Graphics2D g2d) {
-            if (enemyImg != null && enemyImg.getWidth(null) > 0) {
-                g2d.drawImage(enemyImg, (int)x, (int)y, size, size, null);
-            } else {
-                g2d.setColor(Color.ORANGE);
-                g2d.fillRect((int)x, (int)y, size, size);
-            }
-        }
-
-        public Rectangle getBounds() {
-            return new Rectangle((int)x, (int)y, size, size);
-        }
-    }
-
-    // --- 遊戲面板 ---
-    class CirclePanel extends JPanel implements MouseMotionListener, MouseListener {
-        private double circleX = 400, circleY = 400;
-        private int targetX = 400, targetY = 300;
-        private final int PLAYER_SIZE = 60; 
-        private int score = 0;
-        private int health = 3; // 角色 3 條血
-        private boolean isGameOver = false;
-
-        private Image playerImg;
-        private ArrayList<Star> stars = new ArrayList<>();
-        private ArrayList<Bullet> bullets = new ArrayList<>();
-        private ArrayList<Enemy> enemies = new ArrayList<>();
-        private Timer timer;
-
-        public CirclePanel() {
-            setBackground(Color.BLACK);
-            addMouseMotionListener(this);
-            addMouseListener(this);
-            playerImg = new ImageIcon("image/character.png").getImage(); 
-            initGame();
-
-            timer = new Timer(16, e -> {
-                if (!isGameOver) updateAnimation();
-                repaint();
-            });
-            timer.start();
-        }
-
-        private void initGame() {
-            score = 0;
-            health = 3;
-            isGameOver = false;
-            bullets.clear();
-            enemies.clear();
-            stars.clear();
-            for (int i = 0; i < 50; i++) stars.add(new Star(800, 600));
-            for (int i = 0; i < 5; i++) {
-                enemies.add(new Enemy(100 + i * 130, 80 + (i % 2) * 40));
-            }
-        }
-
-        private void updateAnimation() {
-            // --- 安全區域限制邏輯 ---
-            // 限制目標 Y 軸座標，讓飛船不會跑到頂部 UI 區域 (y=0 ~ 60)
-            int safeYTop = 80; // 頂部保留 80 像素給血條和分數
-            int currentTargetY = Math.max(safeYTop + PLAYER_SIZE/2, targetY);
-            
-            circleX += (targetX - circleX) * 0.15;
-            circleY += (currentTargetY - circleY) * 0.15;
-            
-            for (Star star : stars) star.update(getHeight());
-
-            int hitboxSize = (int)(PLAYER_SIZE * 0.6); 
-            Rectangle playerRect = new Rectangle((int)circleX - hitboxSize/2, (int)circleY - hitboxSize/2, hitboxSize, hitboxSize);
-
-            // 1. 更新子彈
-            Iterator<Bullet> bIt = bullets.iterator();
-            while (bIt.hasNext()) {
-                Bullet b = bIt.next();
-                b.update();
-                if (b.y < -50 || b.y > getHeight() + 50) {
-                    bIt.remove();
-                    continue;
-                }
-                // 敵人子彈撞擊玩家判定
-                if (b.isEnemy && b.getBounds().intersects(playerRect)) {
-                    bIt.remove(); // 被打到時子彈消失
-                    health--;     // 扣血
-                    if (health <= 0) isGameOver = true;
-                }
-            }
-
-            // 2. 更新敵人
-            Iterator<Enemy> eIt = enemies.iterator();
-            while (eIt.hasNext()) {
-                Enemy e = eIt.next();
-                e.update(bullets);
-
-                boolean killed = false;
-                Iterator<Bullet> bIt2 = bullets.iterator();
-                while (bIt2.hasNext()) {
-                    Bullet b = bIt2.next();
-                    if (!b.isEnemy && b.getBounds().intersects(e.getBounds())) {
-                        score++;
-                        bIt2.remove(); 
-                        killed = true; 
-                        break; 
-                    }
-                }
-                if (killed) eIt.remove(); 
-            }
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            Graphics2D g2d = (Graphics2D) g;
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            
-            for (Star star : stars) star.draw(g2d);
-            for (Bullet b : bullets) b.draw(g2d);
-            for (Enemy e : enemies) e.draw(g2d);
-            
-            // 畫玩家
-            int drawX = (int)(circleX - PLAYER_SIZE / 2);
-            int drawY = (int)(circleY - PLAYER_SIZE / 2);
-            if (playerImg != null && playerImg.getWidth(null) > 0) {
-                g2d.drawImage(playerImg, drawX, drawY, PLAYER_SIZE, PLAYER_SIZE, this);
-            } else {
-                g2d.setColor(Color.GREEN);
-                g2d.fillRect(drawX, drawY, PLAYER_SIZE, PLAYER_SIZE);
-            }
-
-            // --- UI 顯示區域 ---
-            // 1. 左上角血條
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
-            g2d.drawString("HP:", 20, 35);
-            // 畫血條外框
-            g2d.drawRect(60, 20, 150, 20);
-            // 畫剩餘血量
-            g2d.setColor(health > 1 ? Color.RED : Color.YELLOW);
-            g2d.fillRect(61, 21, health * 50 - 2, 18);
-
-            // 2. 右上角分數
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Monospaced", Font.BOLD, 22));
-            g2d.drawString("SCORE: " + score, getWidth() - 160, 40);
-
-            // 遊戲結束
-            if (isGameOver) {
-                g2d.setColor(new Color(0, 0, 0, 200));
-                g2d.fillRect(0, 0, getWidth(), getHeight());
-                g2d.setColor(Color.RED);
-                g2d.setFont(new Font("Arial", Font.BOLD, 60));
-                g2d.drawString("MISSION FAILED", getWidth()/2 - 240, getHeight()/2);
-                g2d.setFont(new Font("Arial", Font.PLAIN, 20));
-                g2d.setColor(Color.WHITE);
-                g2d.drawString("Click Anywhere to Restart", getWidth()/2 - 120, getHeight()/2 + 50);
-            }
-            
-            // 勝利畫面
-            if (!isGameOver && enemies.isEmpty()) {
-                g2d.setColor(Color.YELLOW);
-                g2d.setFont(new Font("Arial", Font.BOLD, 50));
-                g2d.drawString("ALL ENEMIES CLEAR!", getWidth()/2 - 280, getHeight()/2);
-            }
-        }
-
-        @Override 
-        public void mousePressed(MouseEvent e) {
-            if (isGameOver) { initGame(); return; }
-            if (SwingUtilities.isLeftMouseButton(e)) {
-                bullets.add(new Bullet(circleX, circleY - 20, 0, -15, false));
-            } else if (SwingUtilities.isRightMouseButton(e)) {
-                bullets.add(new Bullet(circleX - 10, circleY, -3, -12, false));
-                bullets.add(new Bullet(circleX + 10, circleY, 3, -12, false));
-            }
-        }
-
-        @Override public void mouseMoved(MouseEvent e) { targetX = e.getX(); targetY = e.getY(); }
-        @Override public void mouseDragged(MouseEvent e) { targetX = e.getX(); targetY = e.getY(); }
-        @Override public void mouseClicked(MouseEvent e) {}
-        @Override public void mouseReleased(MouseEvent e) {}
-        @Override public void mouseEntered(MouseEvent e) {}
-        @Override public void mouseExited(MouseEvent e) {}
-    }
-
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new StarWarsGame());
+        SwingUtilities.invokeLater(StarWarsGame::new);
     }
+}
+
+class GamePanel extends JPanel implements MouseMotionListener, MouseListener {
+    private Player player; // 使用 Player 類別
+    private int mouseX, mouseY;
+    private int score = 0;
+    private boolean isGameOver = false;
+
+    private ArrayList<Star> stars = new ArrayList<>();
+    private ArrayList<Bullet> bullets = new ArrayList<>();
+    private ArrayList<Enemy> enemies = new ArrayList<>();
+    private Timer timer;
+
+    public GamePanel() {
+        setBackground(Color.BLACK);
+        addMouseMotionListener(this);
+        addMouseListener(this);
+        
+        player = new Player(400, 450); // 初始化角色
+        initGame();
+
+        timer = new Timer(16, e -> {
+            if (!isGameOver) updateAnimation();
+            repaint();
+        });
+        timer.start();
+    }
+
+    private void initGame() {
+        score = 0;
+        isGameOver = false;
+        player.reset(400, 450);
+        bullets.clear();
+        enemies.clear();
+        stars.clear();
+        for (int i = 0; i < 50; i++) stars.add(new Star(800, 600));
+        for (int i = 0; i < 5; i++) enemies.add(new Enemy(100 + i * 130, 90));
+    }
+
+    private void updateAnimation() {
+        // 1. 更新玩家位置
+        player.update(mouseX, mouseY);
+        
+        // 2. 更新星星
+        for (Star s : stars) s.update(getHeight());
+
+        // 3. 更新子彈與玩家碰撞
+        Iterator<Bullet> bIt = bullets.iterator();
+        while (bIt.hasNext()) {
+            Bullet b = bIt.next();
+            b.update();
+            if (b.y < -50 || b.y > getHeight() + 50) {
+                bIt.remove();
+                continue;
+            }
+            if (b.isEnemy && b.getBounds().intersects(player.getBounds())) {
+                bIt.remove();
+                player.health--;
+                if (player.health <= 0) isGameOver = true;
+            }
+        }
+
+        // 4. 更新敵人與擊殺判斷
+        Iterator<Enemy> eIt = enemies.iterator();
+        while (eIt.hasNext()) {
+            Enemy e = eIt.next();
+            e.update(bullets);
+            Iterator<Bullet> bIt2 = bullets.iterator();
+            while (bIt2.hasNext()) {
+                Bullet b = bIt2.next();
+                if (!b.isEnemy && b.getBounds().intersects(e.getBounds())) {
+                    score++;
+                    bIt2.remove();
+                    eIt.remove();
+                    break;
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        for (Star s : stars) s.draw(g2d);
+        for (Bullet b : bullets) b.draw(g2d);
+        for (Enemy e : enemies) e.draw(g2d);
+        
+        player.draw(g2d, this); // 畫玩家
+
+        // UI 繪製
+        drawUI(g2d);
+
+        if (isGameOver) drawGameOver(g2d);
+        if (!isGameOver && enemies.isEmpty()) drawWin(g2d);
+    }
+
+    private void drawUI(Graphics2D g2d) {
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
+        g2d.drawString("HP:", 20, 35);
+        g2d.drawRect(60, 20, 150, 20);
+        g2d.setColor(player.health > 1 ? Color.RED : Color.YELLOW);
+        g2d.fillRect(61, 21, player.health * 50 - 2, 18);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString("SCORE: " + score, getWidth() - 160, 40);
+    }
+
+    private void drawGameOver(Graphics2D g2d) {
+        g2d.setColor(new Color(0, 0, 0, 200));
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+        g2d.setColor(Color.RED);
+        g2d.setFont(new Font("Arial", Font.BOLD, 60));
+        g2d.drawString("MISSION FAILED", getWidth()/2 - 240, getHeight()/2);
+    }
+
+    private void drawWin(Graphics2D g2d) {
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(new Font("Arial", Font.BOLD, 50));
+        g2d.drawString("ALL ENEMIES CLEAR!", getWidth()/2 - 280, getHeight()/2);
+    }
+
+    @Override 
+    public void mousePressed(MouseEvent e) {
+        if (isGameOver) { initGame(); return; }
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            bullets.add(new Bullet(player.x, player.y - 20, 0, -15, false));
+        } else {
+            bullets.add(new Bullet(player.x - 10, player.y, -3, -12, false));
+            bullets.add(new Bullet(player.x + 10, player.y, 3, -12, false));
+        }
+    }
+
+    @Override public void mouseMoved(MouseEvent e) { mouseX = e.getX(); mouseY = e.getY(); }
+    @Override public void mouseDragged(MouseEvent e) { mouseX = e.getX(); mouseY = e.getY(); }
+    @Override public void mouseClicked(MouseEvent e) {}
+    @Override public void mouseReleased(MouseEvent e) {}
+    @Override public void mouseEntered(MouseEvent e) {}
+    @Override public void mouseExited(MouseEvent e) {}
 }
