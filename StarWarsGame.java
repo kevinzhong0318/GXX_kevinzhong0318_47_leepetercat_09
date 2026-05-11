@@ -1,4 +1,3 @@
-
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -9,11 +8,10 @@ import java.util.Random;
 import javax.swing.*;
 
 public class StarWarsGame extends JFrame {
-
     private CirclePanel circlePanel;
 
     public StarWarsGame() {
-        setTitle("Star Wars Shooter");
+        setTitle("Star Wars Shooter - Enemy Incoming");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -22,12 +20,10 @@ public class StarWarsGame extends JFrame {
         setVisible(true);
     }
 
-    // --- 星空背景類別 ---
+    // --- 星空背景 ---
     class Star {
-
         double x, y, speed;
         int size;
-
         public Star(int pw, int ph) {
             Random rand = new Random();
             this.x = rand.nextDouble() * pw;
@@ -35,111 +31,123 @@ public class StarWarsGame extends JFrame {
             this.speed = 1 + rand.nextDouble() * 2;
             this.size = 2 + rand.nextInt(2);
         }
-
         public void update(int ph) {
             y += speed;
-            if (y > ph) {
-                y = 0;
-                x = new Random().nextDouble() * 800;
-            }
+            if (y > ph) { y = 0; x = new Random().nextDouble() * 800; }
+        }
+        public void draw(Graphics g) { g.fillOval((int)x, (int)y, size, size); }
+    }
+
+    // --- 子彈類別 (通用) ---
+    class Bullet {
+        double x, y, vx, vy;
+        int width = 5, height = 30;
+        boolean isEnemy; 
+        private static Image pBulletImg, eBulletImg;
+
+        public Bullet(double x, double y, double vx, double vy, boolean isEnemy) {
+            this.x = x;
+            this.y = y;
+            this.vx = vx;
+            this.vy = vy;
+            this.isEnemy = isEnemy;
+            if (pBulletImg == null) pBulletImg = new ImageIcon("image/green_blaster.jpg").getImage();
+            // 建議找一張紅色的子彈給敵人用
+            if (eBulletImg == null) eBulletImg = new ImageIcon("image/red_blaster.png").getImage();
         }
 
-        public void draw(Graphics g) {
-            g.fillOval((int) x, (int) y, size, size);
+        public void update() { x += vx; y += vy; }
+
+        public void draw(Graphics2D g2d) {
+            Image img = isEnemy ? eBulletImg : pBulletImg;
+            if (img != null && img.getWidth(null) != -1) {
+                g2d.drawImage(img, (int)x - width/2, (int)y, width, height, null);
+            } else {
+                g2d.setColor(isEnemy ? Color.RED : Color.GREEN);
+                g2d.fillRect((int)x - width/2, (int)y, width, height);
+            }
         }
     }
 
-    // --- 新增：雷射子彈類別 ---
-    // --- 子彈類別 (使用圖片) ---
-    class Bullet {
-
+    // --- 敵人類別 ---
+    class Enemy {
         double x, y;
-        double vx; // 新增：水平速度 (0 為直線，正值往右斜，負值往左斜)
-        int width = 6, height = 35;
-        double speed = 15;
+        int size = 50;
+        int shootTimer = 0;
+        int shootInterval = 180; // 大約三秒射一次 (60 frames)
+        private static Image enemyImg;
 
-        private static Image bulletImg = null;
-
-        public Bullet(double x, double y, double vx) {
+        public Enemy(double x, double y) {
             this.x = x;
             this.y = y;
-            this.vx = vx; // 接收水平速度
+            if (enemyImg == null) enemyImg = new ImageIcon("image/enemy2_1.png").getImage();
+        }
 
-            if (bulletImg == null) {
-                bulletImg = new ImageIcon("image/green_blaster.jpg").getImage();
+        public void update(ArrayList<Bullet> bullets) {
+            // 簡單的左右晃動
+            x += Math.sin(System.currentTimeMillis() / 500.0) * 2;
+            
+            // 自動射擊邏輯
+            shootTimer++;
+            if (shootTimer >= shootInterval) {
+                // 敵人子彈 vy 為正數，往下飛
+                bullets.add(new Bullet(x + size/2, y + size, 0, 7, true));
+                shootTimer = 0;
             }
         }
 
-        public void update() {
-            y -= speed; // 向上移動
-            x += vx;    // 根據 vx 決定斜率
-        }
-
         public void draw(Graphics2D g2d) {
-            int drawX = (int) (x - width / 2);
-            int drawY = (int) y;
-
-            if (bulletImg != null && bulletImg.getWidth(null) != -1) {
-                // 如果想要更精緻，可以根據 vx 旋轉圖片，這裡先簡單處理繪製
-                g2d.drawImage(bulletImg, drawX, drawY, width, height, null);
+            if (enemyImg != null && enemyImg.getWidth(null) != -1) {
+                g2d.drawImage(enemyImg, (int)x, (int)y, size, size, null);
             } else {
-                g2d.setColor(Color.RED);
-                g2d.fillRect(drawX, drawY, 2, height);
+                g2d.setColor(Color.ORANGE);
+                g2d.fillRect((int)x, (int)y, size, size);
             }
         }
     }
 
     class CirclePanel extends JPanel implements MouseMotionListener, MouseListener {
-
         private double circleX = 400, circleY = 400;
         private int targetX = 400, targetY = 300;
-        private final int PLAYER_SIZE = 60;
-        private final double EASING_FACTOR = 0.15;
-
+        private final int PLAYER_SIZE = 60; 
         private Image playerImg;
-        private ArrayList<Star> stars;
-        private ArrayList<Bullet> bullets; // 管理子彈清單
+        private ArrayList<Star> stars = new ArrayList<>();
+        private ArrayList<Bullet> bullets = new ArrayList<>();
+        private ArrayList<Enemy> enemies = new ArrayList<>();
         private Timer timer;
 
         public CirclePanel() {
             setBackground(Color.BLACK);
             addMouseMotionListener(this);
             addMouseListener(this);
+            playerImg = new ImageIcon("image/character.png").getImage(); 
+            for (int i = 0; i < 50; i++) stars.add(new Star(800, 600));
+            
+            // 初始化幾個敵人
+            enemies.add(new Enemy(200, 50));
+            enemies.add(new Enemy(400, 80));
+            enemies.add(new Enemy(600, 50));
 
-            // 載入圖片
-            playerImg = new ImageIcon("image/character.png").getImage();
-
-            stars = new ArrayList<>();
-            bullets = new ArrayList<>();
-            for (int i = 0; i < 50; i++) {
-                stars.add(new Star(800, 600));
-            }
-
-            timer = new Timer(16, e -> {
-                updateAnimation();
-                repaint();
-            });
+            timer = new Timer(16, e -> { updateAnimation(); repaint(); });
             timer.start();
         }
 
         private void updateAnimation() {
-            // 飛船平滑移動
-            circleX += (targetX - circleX) * EASING_FACTOR;
-            circleY += (targetY - circleY) * EASING_FACTOR;
+            circleX += (targetX - circleX) * 0.15;
+            circleY += (targetY - circleY) * 0.15;
+            for (Star star : stars) star.update(getHeight());
 
-            // 更新星星
-            for (Star star : stars) {
-                star.update(getHeight());
+            // 更新子彈
+            Iterator<Bullet> bIt = bullets.iterator();
+            while (bIt.hasNext()) {
+                Bullet b = bIt.next();
+                b.update();
+                if (b.y < -50 || b.y > getHeight() + 50) bIt.remove();
             }
 
-            // 更新子彈並移除畫面外的子彈
-            Iterator<Bullet> it = bullets.iterator();
-            while (it.hasNext()) {
-                Bullet b = it.next();
-                b.update();
-                if (b.y < -20) {
-                    it.remove();
-                }
+            // 更新敵人
+            for (Enemy enemy : enemies) {
+                enemy.update(bullets);
             }
         }
 
@@ -148,74 +156,32 @@ public class StarWarsGame extends JFrame {
             super.paintComponent(g);
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            // 畫星星
-            g2d.setColor(Color.WHITE);
-            for (Star star : stars) {
-                star.draw(g2d);
-            }
-
-            // 畫子彈
-            for (Bullet b : bullets) {
-                b.draw(g2d);
-            }
-
-            // 畫飛船
-            int drawX = (int) (circleX - PLAYER_SIZE / 2);
-            int drawY = (int) (circleY - PLAYER_SIZE / 2);
-
-            if (playerImg != null) {
-                g2d.drawImage(playerImg, drawX, drawY, PLAYER_SIZE, PLAYER_SIZE, this);
-            } else {
-                g2d.setColor(Color.GREEN);
-                g2d.fillRect(drawX, drawY, PLAYER_SIZE, PLAYER_SIZE);
-            }
+            
+            for (Star star : stars) star.draw(g2d);
+            for (Bullet b : bullets) b.draw(g2d);
+            for (Enemy e : enemies) e.draw(g2d);
+            
+            int drawX = (int)(circleX - PLAYER_SIZE / 2);
+            int drawY = (int)(circleY - PLAYER_SIZE / 2);
+            if (playerImg != null) g2d.drawImage(playerImg, drawX, drawY, PLAYER_SIZE, PLAYER_SIZE, this);
         }
 
-        // --- 滑鼠點擊時新增子彈 ---
-        @Override
+        @Override 
         public void mousePressed(MouseEvent e) {
             if (SwingUtilities.isLeftMouseButton(e)) {
-                // --- 左鍵：發射中間直線 ---
-                // vx 設為 0
-                bullets.add(new Bullet(circleX, circleY - PLAYER_SIZE / 2, 0));
-
-            } else if (SwingUtilities.isRightMouseButton(e)) {
-                // --- 右鍵：發射兩邊斜線 ---
-                // 左斜子彈 (vx 為負)
-                bullets.add(new Bullet(circleX - 10, circleY - PLAYER_SIZE / 4, -3));
-                // 右斜子彈 (vx 為正)
-                bullets.add(new Bullet(circleX + 10, circleY - PLAYER_SIZE / 4, 3));
+                bullets.add(new Bullet(circleX, circleY - 20, 0, -15, false));
+            } else {
+                bullets.add(new Bullet(circleX - 10, circleY, -3, -12, false));
+                bullets.add(new Bullet(circleX + 10, circleY, 3, -12, false));
             }
         }
 
-        @Override
-        public void mouseMoved(MouseEvent e) {
-            targetX = e.getX();
-            targetY = e.getY();
-        }
-
-        @Override
-        public void mouseDragged(MouseEvent e) {
-            targetX = e.getX();
-            targetY = e.getY();
-        }
-
-        @Override
-        public void mouseClicked(MouseEvent e) {
-        }
-
-        @Override
-        public void mouseReleased(MouseEvent e) {
-        }
-
-        @Override
-        public void mouseEntered(MouseEvent e) {
-        }
-
-        @Override
-        public void mouseExited(MouseEvent e) {
-        }
+        @Override public void mouseMoved(MouseEvent e) { targetX = e.getX(); targetY = e.getY(); }
+        @Override public void mouseDragged(MouseEvent e) { targetX = e.getX(); targetY = e.getY(); }
+        @Override public void mouseClicked(MouseEvent e) {}
+        @Override public void mouseReleased(MouseEvent e) {}
+        @Override public void mouseEntered(MouseEvent e) {}
+        @Override public void mouseExited(MouseEvent e) {}
     }
 
     public static void main(String[] args) {
