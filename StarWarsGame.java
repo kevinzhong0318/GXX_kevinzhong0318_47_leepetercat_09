@@ -9,7 +9,7 @@ public class StarWarsGame extends JFrame {
     private CirclePanel circlePanel;
 
     public StarWarsGame() {
-        setTitle("Star Wars Shooter - Optimized Version");
+        setTitle("Star Wars Shooter - UI Safety Version");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -39,7 +39,7 @@ public class StarWarsGame extends JFrame {
     // --- 子彈類別 ---
     class Bullet {
         double x, y, vx, vy;
-        int width = 6, height = 35; 
+        int width = 8, height = 25; 
         boolean isEnemy; 
         private static Image pBulletImg, eBulletImg;
 
@@ -62,7 +62,6 @@ public class StarWarsGame extends JFrame {
         }
 
         public Rectangle getBounds() {
-            // 縮小子彈判定範圍，避免太容易被打到
             return new Rectangle((int)x - width/2, (int)y, width, height);
         }
     }
@@ -109,6 +108,7 @@ public class StarWarsGame extends JFrame {
         private int targetX = 400, targetY = 300;
         private final int PLAYER_SIZE = 60; 
         private int score = 0;
+        private int health = 3; // 角色 3 條血
         private boolean isGameOver = false;
 
         private Image playerImg;
@@ -133,31 +133,30 @@ public class StarWarsGame extends JFrame {
 
         private void initGame() {
             score = 0;
+            health = 3;
             isGameOver = false;
             bullets.clear();
             enemies.clear();
             stars.clear();
             for (int i = 0; i < 50; i++) stars.add(new Star(800, 600));
-            // 產生 5 個敵人
             for (int i = 0; i < 5; i++) {
-                enemies.add(new Enemy(100 + i * 130, 50 + (i % 2) * 50));
+                enemies.add(new Enemy(100 + i * 130, 80 + (i % 2) * 40));
             }
         }
 
         private void updateAnimation() {
+            // --- 安全區域限制邏輯 ---
+            // 限制目標 Y 軸座標，讓飛船不會跑到頂部 UI 區域 (y=0 ~ 60)
+            int safeYTop = 80; // 頂部保留 80 像素給血條和分數
+            int currentTargetY = Math.max(safeYTop + PLAYER_SIZE/2, targetY);
+            
             circleX += (targetX - circleX) * 0.15;
-            circleY += (targetY - circleY) * 0.15;
+            circleY += (currentTargetY - circleY) * 0.15;
+            
             for (Star star : stars) star.update(getHeight());
 
-            // --- 核心修正：縮小玩家碰撞箱 (Hitbox) ---
-            // 只取圖片中心 60% 的範圍，避免撞到透明邊緣就死
             int hitboxSize = (int)(PLAYER_SIZE * 0.6); 
-            Rectangle playerRect = new Rectangle(
-                (int)circleX - hitboxSize/2, 
-                (int)circleY - hitboxSize/2, 
-                hitboxSize, 
-                hitboxSize
-            );
+            Rectangle playerRect = new Rectangle((int)circleX - hitboxSize/2, (int)circleY - hitboxSize/2, hitboxSize, hitboxSize);
 
             // 1. 更新子彈
             Iterator<Bullet> bIt = bullets.iterator();
@@ -170,11 +169,13 @@ public class StarWarsGame extends JFrame {
                 }
                 // 敵人子彈撞擊玩家判定
                 if (b.isEnemy && b.getBounds().intersects(playerRect)) {
-                    isGameOver = true;
+                    bIt.remove(); // 被打到時子彈消失
+                    health--;     // 扣血
+                    if (health <= 0) isGameOver = true;
                 }
             }
 
-            // 2. 更新敵人與擊殺消失邏輯 (不重生)
+            // 2. 更新敵人
             Iterator<Enemy> eIt = enemies.iterator();
             while (eIt.hasNext()) {
                 Enemy e = eIt.next();
@@ -184,7 +185,6 @@ public class StarWarsGame extends JFrame {
                 Iterator<Bullet> bIt2 = bullets.iterator();
                 while (bIt2.hasNext()) {
                     Bullet b = bIt2.next();
-                    // 必須是玩家子彈 (!b.isEnemy) 且 碰撞敵人
                     if (!b.isEnemy && b.getBounds().intersects(e.getBounds())) {
                         score++;
                         bIt2.remove(); 
@@ -216,12 +216,23 @@ public class StarWarsGame extends JFrame {
                 g2d.fillRect(drawX, drawY, PLAYER_SIZE, PLAYER_SIZE);
             }
 
-            // 分數顯示
+            // --- UI 顯示區域 ---
+            // 1. 左上角血條
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
+            g2d.drawString("HP:", 20, 35);
+            // 畫血條外框
+            g2d.drawRect(60, 20, 150, 20);
+            // 畫剩餘血量
+            g2d.setColor(health > 1 ? Color.RED : Color.YELLOW);
+            g2d.fillRect(61, 21, health * 50 - 2, 18);
+
+            // 2. 右上角分數
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Monospaced", Font.BOLD, 22));
             g2d.drawString("SCORE: " + score, getWidth() - 160, 40);
 
-            // 失敗畫面
+            // 遊戲結束
             if (isGameOver) {
                 g2d.setColor(new Color(0, 0, 0, 200));
                 g2d.fillRect(0, 0, getWidth(), getHeight());
@@ -233,7 +244,7 @@ public class StarWarsGame extends JFrame {
                 g2d.drawString("Click Anywhere to Restart", getWidth()/2 - 120, getHeight()/2 + 50);
             }
             
-            // 勝利畫面 (打完所有敵人)
+            // 勝利畫面
             if (!isGameOver && enemies.isEmpty()) {
                 g2d.setColor(Color.YELLOW);
                 g2d.setFont(new Font("Arial", Font.BOLD, 50));
@@ -244,7 +255,6 @@ public class StarWarsGame extends JFrame {
         @Override 
         public void mousePressed(MouseEvent e) {
             if (isGameOver) { initGame(); return; }
-            
             if (SwingUtilities.isLeftMouseButton(e)) {
                 bullets.add(new Bullet(circleX, circleY - 20, 0, -15, false));
             } else if (SwingUtilities.isRightMouseButton(e)) {
