@@ -6,7 +6,7 @@ import javax.swing.*;
 
 public class StarWarsGame2 extends JFrame {
     public StarWarsGame2() {
-        setTitle("Star Wars Shooter - 3 Stages Mode");
+        setTitle("Star Wars Shooter - Stage Mode (God Mode Enabled)");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -29,6 +29,9 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private boolean isGameOver = false;
     private boolean stageCleared = false;
     private boolean newGame = true;
+    
+    // --- 無敵模式：宣告在最外層，確保不會被 initStage 重置 ---
+    private boolean isInvincible = false;
 
     private ArrayList<Star> stars = new ArrayList<>();
     private ArrayList<Bullet> bullets = new ArrayList<>();
@@ -41,8 +44,22 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         addMouseMotionListener(this);
         addMouseListener(this);
 
+        // 設定焦點與鍵盤監聽
+        setFocusable(true);
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_A) {
+                    isInvincible = !isInvincible;
+                    System.out.println("Cheat Switch: " + isInvincible);
+                }
+            }
+        });
+
         player = new Player(400, 450);
         initStage();
+        
+        // 核心遊戲迴圈
         timer = new Timer(16, e -> {
             if (!isGameOver && !stageCleared) {
                 updateAnimation();
@@ -55,6 +72,8 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private void initStage() {
         isGameOver = false;
         stageCleared = false;
+        // 注意：這裡不可將 isInvincible 設為 false，否則換關會失效
+        
         if (newGame) {
             player.reset(400, 450);
             newGame = false;
@@ -62,34 +81,33 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
             player.x = 400;
             player.y = 450;
         }
+        
         bullets.clear();
         stars.clear();
         enemies.clear();
         enemies2.clear();
         boss = null;
 
-        for (int i = 0; i < 50; i++) {
-            stars.add(new Star(800, 600));
-        }
+        for (int i = 0; i < 50; i++) stars.add(new Star(800, 600));
 
         if (stage == 1) {
-            for (int i = 0; i < 5; i++) {
-                enemies.add(new Enemy(100 + i * 130, 90));
-            }
+            for (int i = 0; i < 5; i++) enemies.add(new Enemy(100 + i * 130, 90));
         } else if (stage == 2) {
-            for (int i = 0; i < 3; i++) {
-                enemies2.add(new Enemy2(150 + i * 200, 80));
-            }
+            for (int i = 0; i < 3; i++) enemies2.add(new Enemy2(150 + i * 200, 80));
         } else if (stage == 3) {
             boss = new Boss(340, 60);
         }
     }
 
     private void updateAnimation() {
+        // --- 終極保險：若無敵開啟，每幀鎖定血量 ---
+        if (isInvincible) {
+            player.health = 3; 
+        }
+
         player.update(mouseX, mouseY);
         for (Star s : stars) s.update(getHeight());
 
-        // 子彈邏輯與邊界處理
         Iterator<Bullet> bIt = bullets.iterator();
         while (bIt.hasNext()) {
             Bullet b = bIt.next();
@@ -98,15 +116,17 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
                 bIt.remove();
                 continue;
             }
-            // 敵人子彈撞擊玩家
+            
+            // 敵人子彈傷害判定
             if (b.isEnemy && b.getBounds().intersects(player.getBounds())) {
                 bIt.remove();
-                player.health--;
-                if (player.health <= 0) isGameOver = true;
+                if (!isInvincible) { // 攔截點 1
+                    player.health--;
+                    if (player.health <= 0) isGameOver = true;
+                }
             }
         }
 
-        // 根據關卡執行對應逻辑
         if (stage == 1) updateStageOne();
         else if (stage == 2) updateStageTwo();
         else if (stage == 3) updateStageThree();
@@ -121,6 +141,13 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
                 eIt.remove();
                 score += 10;
             }
+            // 碰撞判定
+            if (e.getBounds().intersects(player.getBounds())) {
+                if (!isInvincible) {
+                    player.health--;
+                    if (player.health <= 0) isGameOver = true;
+                }
+            }
         }
         if (enemies.isEmpty()) stageCleared = true;
     }
@@ -130,6 +157,17 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         while (e2It.hasNext()) {
             Enemy2 e2 = e2It.next();
             e2.update(bullets);
+            
+            // 碰撞玩家判定 (攔截點 2)
+            if (e2.getBounds().intersects(player.getBounds())) {
+                e2It.remove();
+                if (!isInvincible) {
+                    player.health--;
+                    if (player.health <= 0) isGameOver = true;
+                }
+                continue;
+            }
+
             if (checkHit(e2.getBounds())) {
                 e2It.remove();
                 score += 20;
@@ -141,6 +179,15 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private void updateStageThree() {
         if (boss == null) return;
         boss.update(bullets);
+        
+        // 檢查 Boss 是否撞到玩家
+        if (boss.getBounds().intersects(player.getBounds())) {
+            if (!isInvincible) {
+                player.health--;
+                if (player.health <= 0) isGameOver = true;
+            }
+        }
+
         if (checkHit(boss.getBounds())) {
             boss.health--;
             score += 5;
@@ -151,7 +198,6 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         }
     }
 
-    // 統一的碰撞檢查方法，減少代碼重複
     private boolean checkHit(Rectangle targetBounds) {
         Iterator<Bullet> bIt = bullets.iterator();
         while (bIt.hasNext()) {
@@ -189,10 +235,20 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         g2d.drawString("STAGE: " + stage, 20, 35);
         g2d.drawString("HP:", 20, 60);
         g2d.drawRect(60, 45, 150, 20);
+        
+        // 血條顏色
         g2d.setColor(player.health > 1 ? Color.RED : Color.YELLOW);
         g2d.fillRect(61, 46, Math.max(0, player.health * 50 - 2), 18);
+        
         g2d.setColor(Color.WHITE);
         g2d.drawString("SCORE: " + score, getWidth() - 180, 35);
+
+        // --- 無敵模式視覺提示 ---
+        if (isInvincible) {
+            g2d.setColor(Color.CYAN);
+            g2d.drawString("GOD MODE ACTIVATED (A)", 20, 90);
+            g2d.drawRect((int)player.x - 25, (int)player.y - 25, 50, 50); // 主角身邊畫個保護框
+        }
 
         if (stage == 3 && boss != null) {
             g2d.drawString("BOSS HP: " + boss.health, getWidth() - 180, 60);
@@ -236,6 +292,9 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
 
     @Override
     public void mousePressed(MouseEvent e) {
+        // 點擊滑鼠時強制讓鍵盤焦點回到遊戲畫面
+        this.requestFocusInWindow();
+
         if (isGameOver) {
             stage = 1; score = 0; newGame = true; initStage();
             return;
@@ -244,6 +303,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
             advanceStage();
             return;
         }
+        
         if (SwingUtilities.isLeftMouseButton(e)) {
             bullets.add(new Bullet(player.x, player.y - 20, 0, -15, false));
         } else {
