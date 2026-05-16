@@ -17,7 +17,7 @@ public class Enemy2 {
         this.y = y;
         // 載入圖片 (請確保路徑正確，或使用預設色塊)
         if (enemyImg == null) {
-            enemyImg = new ImageIcon("image" + File.separator + "enemy2.png").getImage();
+            enemyImg = new ImageIcon("image" + File.separator + "enemy2_8.png").getImage();
         }
     }
 
