@@ -11,7 +11,11 @@ public class Enemy {
 
     public Enemy(double x, double y) {
         this.x = x; this.y = y;
+<<<<<<< HEAD
+        if (enemyImg == null) enemyImg = new ImageIcon("image\\enemy2_1.png").getImage();
+=======
         if (enemyImg == null) enemyImg = new ImageIcon("image/enemy2_1.png").getImage();
+>>>>>>> a72d435a421909bc2c463d8a5e01210a14c63f19
     }
 
     public void update(ArrayList<Bullet> bullets) {
