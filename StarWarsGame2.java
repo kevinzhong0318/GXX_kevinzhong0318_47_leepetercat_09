@@ -60,7 +60,7 @@ class MenuPanel extends JPanel {
         }).start();
 
         add(Box.createVerticalGlue());
-        JLabel title = new JLabel("星際小樂園");
+        JLabel title = new JLabel("Star Wars Shooter");
         title.setFont(new Font("Serif", Font.BOLD, 65));
         title.setForeground(Color.YELLOW);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
