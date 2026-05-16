@@ -9,8 +9,13 @@ public class Bullet {
 
     public Bullet(double x, double y, double vx, double vy, boolean isEnemy) {
         this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.isEnemy = isEnemy;
+<<<<<<< HEAD
         if (pBulletImg == null) pBulletImg = new ImageIcon("image\\green_blaster.jpg").getImage();
         if (eBulletImg == null) eBulletImg = new ImageIcon("image\\red_blaster.jpg").getImage();
+=======
+        if (pBulletImg == null) pBulletImg = new ImageIcon("image/green_blaster.jpg").getImage();
+        if (eBulletImg == null) eBulletImg = new ImageIcon("image/red_blaster.jpg").getImage();
+>>>>>>> a72d435a421909bc2c463d8a5e01210a14c63f19
     }
 
     public void update() { x += vx; y += vy; }
