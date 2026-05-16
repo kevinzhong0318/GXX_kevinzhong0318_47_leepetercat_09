@@ -6,7 +6,7 @@ import javax.swing.*;
 
 public class StarWarsGame2 extends JFrame {
     public StarWarsGame2() {
-        setTitle("Star Wars Shooter - Stage Mode");
+        setTitle("Star Wars Shooter - 3 Stages Mode");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -25,15 +25,15 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private int mouseX, mouseY;
 
     private int score = 0;
-    private int stage = 1;
+    private int stage = 1; 
     private boolean isGameOver = false;
     private boolean stageCleared = false;
-    private boolean bossDefeated = false;
     private boolean newGame = true;
 
     private ArrayList<Star> stars = new ArrayList<>();
     private ArrayList<Bullet> bullets = new ArrayList<>();
-    private ArrayList<Enemy> enemies = new ArrayList<>();
+    private ArrayList<Enemy> enemies = new ArrayList<>();  
+    private ArrayList<Enemy2> enemies2 = new ArrayList<>(); 
     private Timer timer;
 
     public StagePanel() {
@@ -55,7 +55,6 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private void initStage() {
         isGameOver = false;
         stageCleared = false;
-        bossDefeated = false;
         if (newGame) {
             player.reset(400, 450);
             newGame = false;
@@ -66,6 +65,8 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         bullets.clear();
         stars.clear();
         enemies.clear();
+        enemies2.clear();
+        boss = null;
 
         for (int i = 0; i < 50; i++) {
             stars.add(new Star(800, 600));
@@ -75,18 +76,20 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
             for (int i = 0; i < 5; i++) {
                 enemies.add(new Enemy(100 + i * 130, 90));
             }
-        } else {
+        } else if (stage == 2) {
+            for (int i = 0; i < 3; i++) {
+                enemies2.add(new Enemy2(150 + i * 200, 80));
+            }
+        } else if (stage == 3) {
             boss = new Boss(340, 60);
         }
     }
 
     private void updateAnimation() {
         player.update(mouseX, mouseY);
+        for (Star s : stars) s.update(getHeight());
 
-        for (Star s : stars) {
-            s.update(getHeight());
-        }
-
+        // 子彈邏輯與邊界處理
         Iterator<Bullet> bIt = bullets.iterator();
         while (bIt.hasNext()) {
             Bullet b = bIt.next();
@@ -95,21 +98,18 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
                 bIt.remove();
                 continue;
             }
-
+            // 敵人子彈撞擊玩家
             if (b.isEnemy && b.getBounds().intersects(player.getBounds())) {
                 bIt.remove();
                 player.health--;
-                if (player.health <= 0) {
-                    isGameOver = true;
-                }
+                if (player.health <= 0) isGameOver = true;
             }
         }
 
-        if (stage == 1) {
-            updateStageOne();
-        } else {
-            updateBossStage();
-        }
+        // 根據關卡執行對應逻辑
+        if (stage == 1) updateStageOne();
+        else if (stage == 2) updateStageTwo();
+        else if (stage == 3) updateStageThree();
     }
 
     private void updateStageOne() {
@@ -117,50 +117,51 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         while (eIt.hasNext()) {
             Enemy e = eIt.next();
             e.update(bullets);
-            Iterator<Bullet> bIt2 = bullets.iterator();
-            while (bIt2.hasNext()) {
-                Bullet b = bIt2.next();
-                if (!b.isEnemy && b.getBounds().intersects(e.getBounds())) {
-                    score += 10;
-                    bIt2.remove();
-                    eIt.remove();
-                    break;
-                }
+            if (checkHit(e.getBounds())) {
+                eIt.remove();
+                score += 10;
             }
         }
+        if (enemies.isEmpty()) stageCleared = true;
+    }
 
-        if (enemies.isEmpty()) {
-            stageCleared = true;
+    private void updateStageTwo() {
+        Iterator<Enemy2> e2It = enemies2.iterator();
+        while (e2It.hasNext()) {
+            Enemy2 e2 = e2It.next();
+            e2.update(bullets);
+            if (checkHit(e2.getBounds())) {
+                e2It.remove();
+                score += 20;
+            }
+        }
+        if (enemies2.isEmpty()) stageCleared = true;
+    }
+
+    private void updateStageThree() {
+        if (boss == null) return;
+        boss.update(bullets);
+        if (checkHit(boss.getBounds())) {
+            boss.health--;
+            score += 5;
+            if (boss.health <= 0) {
+                boss = null;
+                stageCleared = true;
+            }
         }
     }
 
-    private void updateBossStage() {
-        if (boss == null) {
-            return;
-        }
-
+    // 統一的碰撞檢查方法，減少代碼重複
+    private boolean checkHit(Rectangle targetBounds) {
         Iterator<Bullet> bIt = bullets.iterator();
         while (bIt.hasNext()) {
             Bullet b = bIt.next();
-            if (b.isEnemy) {
-                continue;
-            }
-            if (boss.getBounds().intersects(b.getBounds())) {
+            if (!b.isEnemy && b.getBounds().intersects(targetBounds)) {
                 bIt.remove();
-                boss.health--;
-                score += 20;
-                if (boss.health <= 0) {
-                    boss = null;
-                    bossDefeated = true;
-                    stageCleared = true;
-                    break;
-                }
+                return true;
             }
         }
-
-        if (boss != null) {
-            boss.update(bullets);
-        }
+        return false;
     }
 
     @Override
@@ -169,27 +170,17 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        for (Star s : stars) {
-            s.draw(g2d);
-        }
-        for (Bullet b : bullets) {
-            b.draw(g2d);
-        }
-        for (Enemy e : enemies) {
-            e.draw(g2d);
-        }
-        if (stage == 2 && boss != null) {
-            boss.draw(g2d);
-        }
-
+        for (Star s : stars) s.draw(g2d);
+        for (Bullet b : bullets) b.draw(g2d);
+        for (Enemy e : enemies) e.draw(g2d);
+        for (Enemy2 e2 : enemies2) e2.draw(g2d);
+        if (boss != null) boss.draw(g2d);
+        
         player.draw(g2d, this);
         drawUI(g2d);
 
-        if (isGameOver) {
-            drawGameOver(g2d);
-        } else if (stageCleared) {
-            drawStageClear(g2d);
-        }
+        if (isGameOver) drawGameOver(g2d);
+        else if (stageCleared) drawStageClear(g2d);
     }
 
     private void drawUI(Graphics2D g2d) {
@@ -203,7 +194,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         g2d.setColor(Color.WHITE);
         g2d.drawString("SCORE: " + score, getWidth() - 180, 35);
 
-        if (stage == 2 && boss != null) {
+        if (stage == 3 && boss != null) {
             g2d.drawString("BOSS HP: " + boss.health, getWidth() - 180, 60);
         }
     }
@@ -223,45 +214,36 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         g2d.fillRect(0, 0, getWidth(), getHeight());
         g2d.setColor(Color.YELLOW);
         g2d.setFont(new Font("Arial", Font.BOLD, 50));
-
-        if (stage == 1) {
-            g2d.drawString("STAGE 1 CLEAR!", getWidth() / 2 - 220, getHeight() / 2 - 20);
-            g2d.setFont(new Font("Arial", Font.BOLD, 24));
-            g2d.drawString("CLICK TO ENTER BOSS STAGE", getWidth() / 2 - 190, getHeight() / 2 + 30);
-        } else {
-            g2d.drawString("BOSS DEFEATED!", getWidth() / 2 - 230, getHeight() / 2 - 20);
-            g2d.setFont(new Font("Arial", Font.BOLD, 24));
-            g2d.drawString("CLICK TO RESTART GAME", getWidth() / 2 - 150, getHeight() / 2 + 30);
-        }
+        
+        String txt = (stage == 3) ? "ALL CLEAR!" : "STAGE " + stage + " CLEAR!";
+        g2d.drawString(txt, getWidth() / 2 - 200, getHeight() / 2 - 20);
+        
+        g2d.setFont(new Font("Arial", Font.BOLD, 24));
+        String sub = (stage == 3) ? "YOU SAVED THE GALAXY!" : "CLICK TO PROCEED";
+        g2d.drawString(sub, getWidth() / 2 - 130, getHeight() / 2 + 30);
     }
 
     private void advanceStage() {
-        if (stage == 1) {
-            stage = 2;
-            initStage();
+        if (stage < 3) {
+            stage++;
         } else {
             stage = 1;
             score = 0;
             newGame = true;
-            initStage();
         }
+        initStage();
     }
 
     @Override
     public void mousePressed(MouseEvent e) {
         if (isGameOver) {
-            stage = 1;
-            score = 0;
-            newGame = true;
-            initStage();
+            stage = 1; score = 0; newGame = true; initStage();
             return;
         }
-
         if (stageCleared) {
             advanceStage();
             return;
         }
-
         if (SwingUtilities.isLeftMouseButton(e)) {
             bullets.add(new Bullet(player.x, player.y - 20, 0, -15, false));
         } else {
