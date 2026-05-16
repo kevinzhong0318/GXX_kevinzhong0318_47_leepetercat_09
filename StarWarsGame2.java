@@ -29,6 +29,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private boolean isGameOver = false;
     private boolean stageCleared = false;
     private boolean bossDefeated = false;
+    private boolean newGame = true;
 
     private ArrayList<Star> stars = new ArrayList<>();
     private ArrayList<Bullet> bullets = new ArrayList<>();
@@ -56,7 +57,13 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         isGameOver = false;
         stageCleared = false;
         bossDefeated = false;
-        player.reset(400, 450);
+        if (newGame) {
+            player.reset(400, 450);
+            newGame = false;
+        } else {
+            player.x = 400;
+            player.y = 450;
+        }
         bullets.clear();
         stars.clear();
         enemies.clear();
@@ -236,6 +243,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         } else {
             stage = 1;
             score = 0;
+            newGame = true;
             initStage();
         }
     }
@@ -245,6 +253,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         if (isGameOver) {
             stage = 1;
             score = 0;
+            newGame = true;
             initStage();
             return;
         }
