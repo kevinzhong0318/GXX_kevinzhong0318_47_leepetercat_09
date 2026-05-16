@@ -28,7 +28,7 @@ GitHub：leepetercat
 
 本組後續將使用 Pull Request 紀錄每週進度。
 
-遊玩方式:
+**遊玩方式:**
 
 滑鼠左鍵-->射擊一個子彈
 
