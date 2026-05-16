@@ -1,4 +1,5 @@
 import java.awt.*;
+import java.io.File;
 import java.util.ArrayList;
 import javax.swing.ImageIcon;
 
@@ -12,7 +13,7 @@ public class Boss {
     public Boss(double x, double y) {
         this.x = x;
         this.y = y;
-        if (bossImg == null) bossImg = new ImageIcon("image\\enemy2_10.png").getImage();
+        if (bossImg == null) bossImg = new ImageIcon("image" + File.separator + "enemy2_10.png").getImage();
     }
 
     public void update(ArrayList<Bullet> bullets) {
