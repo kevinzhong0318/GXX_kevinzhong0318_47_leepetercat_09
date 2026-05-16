@@ -1,6 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 <<<<<<< HEAD
+>>>>>>> 7767fede722e2ea2be0fc397950aed97343e34d1
+=======
 >>>>>>> 7767fede722e2ea2be0fc397950aed97343e34d1
 import java.awt.*;
 import java.awt.event.*;
@@ -163,7 +166,10 @@ class GamePanel extends JPanel implements MouseMotionListener, MouseListener {
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseExited(MouseEvent e) {}
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 7767fede722e2ea2be0fc397950aed97343e34d1
 =======
 import java.awt.*;
 import java.awt.event.*;
@@ -326,5 +332,8 @@ class GamePanel extends JPanel implements MouseMotionListener, MouseListener {
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseExited(MouseEvent e) {}
 >>>>>>> a72d435a421909bc2c463d8a5e01210a14c63f19
+<<<<<<< HEAD
+>>>>>>> 7767fede722e2ea2be0fc397950aed97343e34d1
+=======
 >>>>>>> 7767fede722e2ea2be0fc397950aed97343e34d1
 }
