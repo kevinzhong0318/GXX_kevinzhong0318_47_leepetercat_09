@@ -99,7 +99,12 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private Boss boss;
     private int mouseX, mouseY, score = 0, stage = 1;
     private boolean isGameOver = false, stageCleared = false, isInvincible = false;
-    private boolean isPaused = false; 
+    private boolean isPaused = false;
+
+    private long stageStartTime = 0;
+    private long currentStageTime = 0;
+    private boolean hasRecordedClear = false;
+    private double[] bestClearTimes = new double[5];
 
     private ArrayList<Star> stars = new ArrayList<>();
     private ArrayList<Bullet> bullets = new ArrayList<>();
@@ -141,8 +146,12 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         });
 
         player = new Player(400, 450);
+        for (int i = 1; i < bestClearTimes.length; i++) bestClearTimes[i] = Double.POSITIVE_INFINITY;
         timer = new Timer(16, e -> {
-            if (!isPaused && !isGameOver && !stageCleared) updateAnimation();
+            if (!isPaused && !isGameOver && !stageCleared) {
+                updateAnimation();
+                currentStageTime = System.currentTimeMillis() - stageStartTime;
+            }
             repaint();
         });
         timer.start();
@@ -155,9 +164,11 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     }
 
     private void initStage() {
-        isGameOver = false; stageCleared = false;
+        isGameOver = false; stageCleared = false; hasRecordedClear = false;
         player.reset(400, 450);
         bullets.clear(); stars.clear(); enemies.clear(); enemies2.clear(); boss = null;
+        stageStartTime = System.currentTimeMillis();
+        currentStageTime = 0;
 
         for (int i = 0; i < 60; i++) stars.add(new Star(800, 600));
 
@@ -190,7 +201,12 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
             }
         }
         updateEnemies();
-        if (enemies.isEmpty() && enemies2.isEmpty() && boss == null) stageCleared = true;
+        if (enemies.isEmpty() && enemies2.isEmpty() && boss == null) {
+            if (!stageCleared) {
+                stageCleared = true;
+                recordStageClear();
+            }
+        }
     }
 
     private void updateEnemies() {
@@ -249,9 +265,12 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         drawUI(g2d);
 
         // 疊加頁面判定
-        if (isGameOver) drawOverlay(g2d, "任務失敗", Color.RED, "點擊滑鼠回到主選單");
-        else if (stageCleared) drawOverlay(g2d, "關卡完成！", Color.YELLOW, "點擊滑鼠回到主選單");
-        else if (isPaused) drawOverlay(g2d, "遊戲暫停", Color.WHITE, "按 L 鍵繼續 / 按 M 鍵回選單");
+        if (isGameOver) drawOverlay(g2d, "任務失敗", Color.RED, "點擊滑鼠回到主選單", "");
+        else if (stageCleared) {
+            String clearText = "本次: " + formatTime(currentStageTime);
+            String bestText = bestClearTimes[stage] < Double.POSITIVE_INFINITY ? "最快: " + formatTime((long) bestClearTimes[stage]) : "最快: --";
+            drawOverlay(g2d, "關卡完成！", Color.YELLOW, clearText, bestText);
+        } else if (isPaused) drawOverlay(g2d, "遊戲暫停", Color.WHITE, "按 L 鍵繼續 / 按 M 鍵回選單", "");
     }
 
     private void drawUI(Graphics2D g2d) {
@@ -264,11 +283,13 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         g2d.fillRect(61, 46, Math.max(0, player.health * 50 - 2), 18);
         g2d.setColor(Color.WHITE);
         g2d.drawString("分數: " + score, getWidth() - 150, 35);
-        if (isInvincible) { g2d.setColor(Color.CYAN); g2d.drawString("無敵模式開啟", 20, 90); }
+        g2d.drawString("時間: " + formatTime(currentStageTime), 20, 90);
+        g2d.drawString("最快: " + (bestClearTimes[stage] < Double.POSITIVE_INFINITY ? formatTime((long) bestClearTimes[stage]) : "--"), 20, 115);
+        if (isInvincible) { g2d.setColor(Color.CYAN); g2d.drawString("無敵模式開啟", 20, 140); }
         if (boss != null) { g2d.setColor(Color.WHITE); g2d.drawString("BOSS: " + boss.health, getWidth() - 150, 60); }
     }
 
-    private void drawOverlay(Graphics2D g2d, String text, Color color, String subText) {
+    private void drawOverlay(Graphics2D g2d, String text, Color color, String subText1, String subText2) {
         g2d.setColor(new Color(0,0,0,180));
         g2d.fillRect(0,0,800,600);
         g2d.setColor(color);
@@ -276,7 +297,25 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         g2d.drawString(text, 250, 280);
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 20));
         g2d.setColor(Color.WHITE);
-        g2d.drawString(subText, 265, 330);
+        g2d.drawString(subText1, 265, 330);
+        if (subText2 != null && !subText2.isEmpty()) {
+            g2d.drawString(subText2, 265, 360);
+        }
+    }
+
+    private void recordStageClear() {
+        if (hasRecordedClear) return;
+        hasRecordedClear = true;
+        long clearTime = currentStageTime;
+        if (clearTime > 0) {
+            if (clearTime < bestClearTimes[stage]) {
+                bestClearTimes[stage] = clearTime;
+            }
+        }
+    }
+
+    private String formatTime(long millis) {
+        return String.format("%.2f 秒", millis / 1000.0);
     }
 
     @Override
