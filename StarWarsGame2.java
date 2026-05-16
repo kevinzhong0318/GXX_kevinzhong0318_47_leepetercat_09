@@ -10,11 +10,12 @@ public class StarWarsGame2 extends JFrame {
     private StagePanel gamePanel;
 
     public StarWarsGame2() {
-        setTitle("星際小樂園 - 完整版 (Esc 暫停)");
+        setTitle("星際小樂園 - 終極完整版");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
+        // 頁面切換設定
         JPanel menuPanel = new MenuPanel(this);
         gamePanel = new StagePanel(this);
 
@@ -29,6 +30,8 @@ public class StarWarsGame2 extends JFrame {
     public void startStage(int s) {
         gamePanel.setStage(s);
         cardLayout.show(mainContainer, "Game");
+        // 強制取得鍵盤焦點
+        gamePanel.setFocusable(true);
         gamePanel.requestFocusInWindow(); 
     }
 
@@ -41,13 +44,16 @@ public class StarWarsGame2 extends JFrame {
     }
 }
 
-// --- 歡迎頁面 ---
+// --- 歡迎選單面版 ---
 class MenuPanel extends JPanel {
     private ArrayList<Star> menuStars = new ArrayList<>();
+
     public MenuPanel(StarWarsGame2 parent) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(Color.BLACK);
+
         for (int i = 0; i < 50; i++) menuStars.add(new Star(800, 600));
+        
         new Timer(16, e -> {
             for (Star s : menuStars) s.update(600);
             repaint();
@@ -59,6 +65,7 @@ class MenuPanel extends JPanel {
         title.setForeground(Color.YELLOW);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
         add(title);
+
         add(Box.createVerticalStrut(40));
 
         String[] labels = {"第一關: 突擊小隊", "第二關: 彈幕風暴", "第三關: 最終決戰", "第四關: 全軍出擊", "退出遊戲"};
@@ -68,27 +75,31 @@ class MenuPanel extends JPanel {
             btn.setMaximumSize(new Dimension(320, 45));
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
             btn.setFont(new Font("SansSerif", Font.BOLD, 16));
+            
             if (i == 4) btn.addActionListener(e -> System.exit(0));
             else btn.addActionListener(e -> parent.startStage(index));
+            
             add(btn);
             add(Box.createVerticalStrut(12));
         }
         add(Box.createVerticalGlue());
     }
-    @Override protected void paintComponent(Graphics g) {
+
+    @Override
+    protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         for (Star s : menuStars) s.draw(g);
     }
 }
 
-// --- 遊戲面板 ---
+// --- 遊戲核心面版 ---
 class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     private StarWarsGame2 parentFrame;
     private Player player;
     private Boss boss;
     private int mouseX, mouseY, score = 0, stage = 1;
     private boolean isGameOver = false, stageCleared = false, isInvincible = false;
-    private boolean isPaused = false; // 新增：暫停狀態
+    private boolean isPaused = false; 
 
     private ArrayList<Star> stars = new ArrayList<>();
     private ArrayList<Bullet> bullets = new ArrayList<>();
@@ -101,26 +112,37 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         setBackground(Color.BLACK);
         addMouseMotionListener(this);
         addMouseListener(this);
-        setFocusable(true);
-
-        addKeyListener(new KeyAdapter() {
+        
+        // 強化鍵盤監聽與焦點取得
+        this.setFocusable(true);
+        this.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_A) isInvincible = !isInvincible;
-                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                    if (!isGameOver && !stageCleared) {
-                        isPaused = !isPaused; // 切換暫停
+                int code = e.getKeyCode();
+
+                // A 鍵無敵切換
+                if (code == KeyEvent.VK_A) isInvincible = !isInvincible;
+
+                // ESC 暫停切換
+                if (code == KeyEvent.VK_ESCAPE) {
+                    if (!isGameOver && !stageCleared) isPaused = !isPaused;
+                }
+
+                // 暫停模式下的特殊控制
+                if (isPaused) {
+                    if (code == KeyEvent.VK_L) isPaused = false; // L 繼續
+                    if (code == KeyEvent.VK_M) { // M 回選單
+                        isPaused = false;
+                        parentFrame.backToMenu();
                     }
                 }
+                repaint();
             }
         });
 
         player = new Player(400, 450);
         timer = new Timer(16, e -> {
-            // 只有在「非暫停」、「非失敗」、「非過關」時才更新邏輯
-            if (!isPaused && !isGameOver && !stageCleared) {
-                updateAnimation();
-            }
+            if (!isPaused && !isGameOver && !stageCleared) updateAnimation();
             repaint();
         });
         timer.start();
@@ -128,7 +150,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
 
     public void setStage(int s) { 
         this.stage = s; 
-        isPaused = false;
+        this.isPaused = false;
         initStage(); 
     }
 
@@ -136,7 +158,10 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         isGameOver = false; stageCleared = false;
         player.reset(400, 450);
         bullets.clear(); stars.clear(); enemies.clear(); enemies2.clear(); boss = null;
+
         for (int i = 0; i < 60; i++) stars.add(new Star(800, 600));
+
+        // 第四關大混戰邏輯：結合所有關卡內容
         if (stage == 1 || stage == 4) {
             int count = (stage == 4) ? 3 : 5;
             for (int i = 0; i < count; i++) enemies.add(new Enemy(100 + i * 150, 80));
@@ -145,7 +170,9 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
             int count = (stage == 4) ? 2 : 3;
             for (int i = 0; i < count; i++) enemies2.add(new Enemy2(200 + i * 250, 100));
         }
-        if (stage == 3 || stage == 4) boss = new Boss(340, 60);
+        if (stage == 3 || stage == 4) {
+            boss = new Boss(340, 60);
+        }
     }
 
     private void updateAnimation() {
@@ -167,11 +194,13 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
     }
 
     private void updateEnemies() {
+        // 普通怪更新
         Iterator<Enemy> eIt = enemies.iterator();
         while (eIt.hasNext()) {
             Enemy e = eIt.next(); e.update(bullets);
             if (checkHit(e.getBounds())) { eIt.remove(); score += 10; }
         }
+        // 環狀彈怪更新
         Iterator<Enemy2> e2It = enemies2.iterator();
         while (e2It.hasNext()) {
             Enemy2 e2 = e2It.next(); e2.update(bullets);
@@ -181,9 +210,13 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
             }
             if (checkHit(e2.getBounds())) { e2It.remove(); score += 20; }
         }
+        // Boss 更新
         if (boss != null) {
             boss.update(bullets);
-            if (checkHit(boss.getBounds())) { boss.health--; score += 5; if (boss.health <= 0) boss = null; }
+            if (checkHit(boss.getBounds())) {
+                boss.health--; score += 5;
+                if (boss.health <= 0) boss = null;
+            }
         }
     }
 
@@ -207,15 +240,18 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         if (boss != null) boss.draw(g2d);
         player.draw(g2d, this);
         
+        // 無敵保護圈
         if (isInvincible) {
             g2d.setColor(Color.CYAN);
             g2d.drawOval((int)player.x - 25, (int)player.y - 25, 50, 50);
         }
         
         drawUI(g2d);
-        if (isGameOver) drawOverlay(g2d, "任務失敗", Color.RED, "點擊滑鼠回到選單");
-        else if (stageCleared) drawOverlay(g2d, "關卡完成！", Color.YELLOW, "點擊滑鼠回到選單");
-        else if (isPaused) drawOverlay(g2d, "遊戲暫停", Color.WHITE, "按 L 鍵繼續 或 按 M 鍵回選單");
+
+        // 疊加頁面判定
+        if (isGameOver) drawOverlay(g2d, "任務失敗", Color.RED, "點擊滑鼠回到主選單");
+        else if (stageCleared) drawOverlay(g2d, "關卡完成！", Color.YELLOW, "點擊滑鼠回到主選單");
+        else if (isPaused) drawOverlay(g2d, "遊戲暫停", Color.WHITE, "按 L 鍵繼續 / 按 M 鍵回選單");
     }
 
     private void drawUI(Graphics2D g2d) {
@@ -228,28 +264,28 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         g2d.fillRect(61, 46, Math.max(0, player.health * 50 - 2), 18);
         g2d.setColor(Color.WHITE);
         g2d.drawString("分數: " + score, getWidth() - 150, 35);
-        if (isInvincible) { g2d.setColor(Color.CYAN); g2d.drawString("無敵中 (A)", 20, 90); }
+        if (isInvincible) { g2d.setColor(Color.CYAN); g2d.drawString("無敵模式開啟", 20, 90); }
+        if (boss != null) { g2d.setColor(Color.WHITE); g2d.drawString("BOSS: " + boss.health, getWidth() - 150, 60); }
     }
 
-    private void drawOverlay(Graphics2D g2d, String title, Color color, String subText) {
+    private void drawOverlay(Graphics2D g2d, String text, Color color, String subText) {
         g2d.setColor(new Color(0,0,0,180));
-        g2d.fillRect(0,0,getWidth(),getHeight());
+        g2d.fillRect(0,0,800,600);
         g2d.setColor(color);
         g2d.setFont(new Font("SansSerif", Font.BOLD, 50));
-        g2d.drawString(title, getWidth()/2 - 100, 250);
+        g2d.drawString(text, 250, 280);
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 20));
-        g2d.setColor(Color.LIGHT_GRAY);
-        g2d.drawString(subText, getWidth()/2 - 130, 310);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(subText, 265, 330);
     }
 
     @Override
     public void mousePressed(MouseEvent e) {
+        // 重要：點擊滑鼠確保焦點回到面版
         this.requestFocusInWindow();
-        // 如果是失敗或過關，點擊回到選單
+
         if (isGameOver || stageCleared) { parentFrame.backToMenu(); return; }
-        
-        // 暫停時點擊不射擊，改由鍵盤控制
-        if (isPaused) return;
+        if (isPaused) return; 
 
         if (SwingUtilities.isLeftMouseButton(e)) bullets.add(new Bullet(player.x, player.y - 20, 0, -15, false));
         else {
@@ -258,16 +294,6 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         }
     }
 
-    // 為了讓暫停選單更好控制，我們增加鍵盤監聽判斷
-    @Override
-    public void keyReleased(KeyEvent e) {
-        if (isPaused) {
-            if (e.getKeyCode() == KeyEvent.VK_L) isPaused = false; // L = Continue
-            if (e.getKeyCode() == KeyEvent.VK_M) parentFrame.backToMenu(); // M = Menu
-        }
-    }
-
-    // 介面實作
     @Override public void mouseMoved(MouseEvent e) { mouseX = e.getX(); mouseY = e.getY(); }
     @Override public void mouseDragged(MouseEvent e) { mouseX = e.getX(); mouseY = e.getY(); }
     @Override public void mouseClicked(MouseEvent e) {}
