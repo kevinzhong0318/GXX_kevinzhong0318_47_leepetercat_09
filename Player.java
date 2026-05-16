@@ -1,4 +1,5 @@
 import java.awt.*;
+import java.io.File;
 import javax.swing.ImageIcon;
 
 public class Player {
@@ -10,7 +11,7 @@ public class Player {
     public Player(double startX, double startY) {
         this.x = startX;
         this.y = startY;
-        this.img = new ImageIcon("image\\character.png").getImage();
+        this.img = new ImageIcon("image" + File.separator + "character.png").getImage();
     }
 
     // 限制玩家不能飛進 UI 區域 (頂部 80 像素)

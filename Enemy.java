@@ -1,17 +1,17 @@
 import java.awt.*;
+import java.io.File;
 import java.util.ArrayList;
 import javax.swing.ImageIcon;
-
 public class Enemy {
     public double x, y;
     public int size = 50;
     private int shootTimer = 0;
-    private int shootInterval = 150; 
+    private int shootInterval = 30; 
     private static Image enemyImg;
 
     public Enemy(double x, double y) {
         this.x = x; this.y = y;
-        if (enemyImg == null) enemyImg = new ImageIcon("image\\enemy2_1.png").getImage();
+        if (enemyImg == null) enemyImg = new ImageIcon("image" + File.separator + "enemy2_1.png").getImage();
     }
 
     public void update(ArrayList<Bullet> bullets) {
