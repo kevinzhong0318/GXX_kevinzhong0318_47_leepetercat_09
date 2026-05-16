@@ -43,7 +43,6 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
 
         player = new Player(400, 450);
         initStage();
-
         timer = new Timer(16, e -> {
             if (!isGameOver && !stageCleared) {
                 updateAnimation();
