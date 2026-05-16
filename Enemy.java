@@ -6,7 +6,7 @@ public class Enemy {
     public double x, y;
     public int size = 50;
     private int shootTimer = 0;
-    private int shootInterval = 150; 
+    private int shootInterval = 30; 
     private static Image enemyImg;
 
     public Enemy(double x, double y) {
