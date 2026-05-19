@@ -155,6 +155,52 @@ class BossPanel extends JPanel implements MouseMotionListener, MouseListener {
         if (isGameOver) drawGameOver(g2d);
         if (!isGameOver && bossDefeated) drawWin(g2d);
     }
+    private void drawUI(Graphics2D g2d) {
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
+        g2d.drawString("HP:", 20, 35);
+        g2d.drawRect(60, 20, 150, 20);
+        g2d.setColor(player.health > 1 ? Color.RED : Color.YELLOW);
+        g2d.fillRect(61, 21, Math.max(0, player.health * 50 - 2), 18);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString("SCORE: " + score, getWidth() - 160, 40);
+
+        if (boss != null) {
+            g2d.drawString("BOSS HP: " + boss.health, getWidth() - 160, 70);
+        }
+    }
+
+    private void drawGameOver(Graphics2D g2d) {
+        g2d.setColor(new Color(0, 0, 0, 200));
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+        g2d.setColor(Color.RED);
+        g2d.setFont(new Font("Arial", Font.BOLD, 60));
+        g2d.drawString("MISSION FAILED", getWidth()/2 - 240, getHeight()/2);
+    }
+
+    private void drawWin(Graphics2D g2d) {
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(new Font("Arial", Font.BOLD, 50));
+        g2d.drawString("BOSS DEFEATED!", getWidth()/2 - 220, getHeight()/2);
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+        if (isGameOver) { initGame(); return; }
+        if (bossDefeated) { initGame(); return; }
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            bullets.add(new Bullet(player.x, player.y - 20, 0, -15, false));
+        } else {
+            bullets.add(new Bullet(player.x - 10, player.y, -3, -12, false));
+            bullets.add(new Bullet(player.x + 10, player.y, 3, -12, false));
+        }
+    }
+
+    @Override public void mouseMoved(MouseEvent e) { mouseX = e.getX(); mouseY = e.getY(); }
+    @Override public void mouseDragged(MouseEvent e) { mouseX = e.getX(); mouseY = e.getY(); }
+    @Override public void mouseClicked(MouseEvent e) {}
+    @Override public void mouseReleased(MouseEvent e) {}
+    @Override public void mouseEntered(MouseEvent e) {}
+    @Override public void mouseExited(MouseEvent e) {}
     
-    // ... (其餘 drawUI, drawGameOver, drawWin, Mouse 事件維持不變)
 }

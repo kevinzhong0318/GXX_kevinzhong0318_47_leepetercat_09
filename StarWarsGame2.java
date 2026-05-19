@@ -170,6 +170,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         bullets.clear(); stars.clear(); enemies.clear(); enemies2.clear(); boss = null;
         stageStartTime = System.currentTimeMillis();
         currentStageTime = 0;
+        score = 0; 
 
         for (int i = 0; i < 60; i++) stars.add(new Star(800, 600));
 
