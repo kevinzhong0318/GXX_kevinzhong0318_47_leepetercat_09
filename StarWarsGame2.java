@@ -40,6 +40,7 @@ public class StarWarsGame2 extends JFrame {
     }
 
     public static void main(String[] args) {
+        SoundManager.loadSounds(new String[]{"shoot.wav", "hit.wav"});
         SwingUtilities.invokeLater(StarWarsGame2::new);
     }
 }
@@ -169,6 +170,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         bullets.clear(); stars.clear(); enemies.clear(); enemies2.clear(); boss = null;
         stageStartTime = System.currentTimeMillis();
         currentStageTime = 0;
+        score = 0; 
 
         for (int i = 0; i < 60; i++) stars.add(new Star(800, 600));
 
@@ -240,7 +242,10 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
         Iterator<Bullet> bIt = bullets.iterator();
         while (bIt.hasNext()) {
             Bullet b = bIt.next();
-            if (!b.isEnemy && b.getBounds().intersects(targetBounds)) { bIt.remove(); return true; }
+            if (!b.isEnemy && b.getBounds().intersects(targetBounds)) { 
+                bIt.remove(); 
+                SoundManager.playSound("hit.wav");
+                return true; }
         }
         return false;
     }
@@ -325,7 +330,7 @@ class StagePanel extends JPanel implements MouseMotionListener, MouseListener {
 
         if (isGameOver || stageCleared) { parentFrame.backToMenu(); return; }
         if (isPaused) return; 
-
+        SoundManager.playSound("shoot.wav");
         if (SwingUtilities.isLeftMouseButton(e)) bullets.add(new Bullet(player.x, player.y - 20, 0, -15, false));
         else {
             bullets.add(new Bullet(player.x - 10, player.y, -3, -12, false));

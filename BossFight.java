@@ -31,6 +31,12 @@ class BossPanel extends JPanel implements MouseMotionListener, MouseListener {
 
     private ArrayList<Star> stars = new ArrayList<>();
     private ArrayList<Bullet> bullets = new ArrayList<>();
+    
+    // --- 關鍵新增：宣告漏掉的變數 ---
+    private ArrayList<Enemy2> enemies = new ArrayList<>(); // 儲存小怪名單
+    private int spawnTimer = 0;                             // 控制產出頻率
+    // ----------------------------
+
     private Timer timer;
 
     public BossPanel() {
@@ -55,80 +61,100 @@ class BossPanel extends JPanel implements MouseMotionListener, MouseListener {
         player.reset(400, 450);
         bullets.clear();
         stars.clear();
+        enemies.clear(); // 現在找得到了
+        spawnTimer = 0;  // 現在找得到了
         boss = new Boss(340, 60);
         for (int i = 0; i < 50; i++) stars.add(new Star(800, 600));
-        enemies.clear();
-        spawnTimer = 0;
     }
 
     private void updateAnimation() {
-    player.update(mouseX, mouseY);
-    for (Star s : stars) s.update(getHeight());
+        player.update(mouseX, mouseY);
+        for (Star s : stars) s.update(getHeight());
 
-    // 1. 生成小怪邏輯 (階段一：Boss 血量高於 10 時才召喚)
-    if (boss != null && boss.health > 10) {
-        spawnTimer++;
-        if (spawnTimer >= 80) { // 約 1.5 秒出一隻
-            enemies.add(new Enemy2(Math.random() * (getWidth() - 40), -40));
-            spawnTimer = 0;
+        // 1. 生成小怪邏輯
+        if (boss != null && boss.health > 10) {
+            spawnTimer++;
+            if (spawnTimer >= 80) {
+                enemies.add(new Enemy2(Math.random() * (getWidth() - 40), -40));
+                spawnTimer = 0;
+            }
         }
-    }
 
-    // 2. 更新小怪與環狀射擊
-    Iterator<Enemy2> eIt = enemies.iterator();
-    while (eIt.hasNext()) {
-        Enemy2 e = eIt.next();
-        e.update(bullets); // 傳入子彈清單讓它射擊
-        if (e.y > getHeight() || e.health <= 0) {
-            eIt.remove();
-            continue;
+        // 2. 更新小怪
+        Iterator<Enemy2> eIt = enemies.iterator();
+        while (eIt.hasNext()) {
+            Enemy2 e = eIt.next();
+            e.update(bullets);
+            if (e.y > getHeight() || e.health <= 0) {
+                eIt.remove();
+                continue;
+            }
+            if (e.getBounds().intersects(player.getBounds())) {
+                player.health--;
+                eIt.remove();
+                if (player.health <= 0) isGameOver = true;
+            }
         }
-        if (e.getBounds().intersects(player.getBounds())) {
-            player.health--;
-            eIt.remove();
-            if (player.health <= 0) isGameOver = true;
-        }
-    }
 
-    // 3. 子彈碰撞判定 (增加對 Enemy2 的判定)
-    Iterator<Bullet> bIt = bullets.iterator();
-    while (bIt.hasNext()) {
-        Bullet b = bIt.next();
-        b.update();
-        // ... (省略原有邊界檢查)
+        // 3. 子彈與碰撞
+        Iterator<Bullet> bIt = bullets.iterator();
+        while (bIt.hasNext()) {
+            Bullet b = bIt.next();
+            b.update();
+            
+            // 邊界檢查防止子彈過多
+            if (b.y < -50 || b.y > getHeight() + 50) {
+                bIt.remove();
+                continue;
+            }
 
-        if (!b.isEnemy) { // 玩家的子彈
-            for (Enemy2 target : enemies) {
-                if (b.getBounds().intersects(target.getBounds())) {
-                    target.health--; // Enemy2 會因為 update 裡的判定被移除
-                    bIt.remove();    // 子彈消失
-                    score += 10;
-                    break;
+            if (!b.isEnemy) {
+                boolean hitAnything = false;
+                for (Enemy2 target : enemies) {
+                    if (b.getBounds().intersects(target.getBounds())) {
+                        target.health--;
+                        bIt.remove();
+                        score += 10;
+                        hitAnything = true;
+                        break;
+                    }
+                }
+                if (hitAnything) continue;
+
+                if (boss != null && b.getBounds().intersects(boss.getBounds())) {
+                    boss.health--;
+                    bIt.remove();
+                    if (boss.health <= 0) {
+                        boss = null;
+                        bossDefeated = true;
+                    }
+                    continue;
+                }
+            } else {
+                // 敵人子彈打玩家
+                if (b.getBounds().intersects(player.getBounds())) {
+                    player.health--;
+                    bIt.remove();
+                    if (player.health <= 0) isGameOver = true;
                 }
             }
-            // ... (原本的 Boss 碰撞檢查)
         }
     }
-    // ... (Boss 更新)
-}
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
         for (Star s : stars) s.draw(g2d);
         for (Bullet b : bullets) b.draw(g2d);
+        for (Enemy2 e : enemies) e.draw(g2d); // 記得要把小怪畫出來
         if (boss != null) boss.draw(g2d);
         player.draw(g2d, this);
 
         drawUI(g2d);
-
         if (isGameOver) drawGameOver(g2d);
         if (!isGameOver && bossDefeated) drawWin(g2d);
     }
-
     private void drawUI(Graphics2D g2d) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
@@ -176,4 +202,5 @@ class BossPanel extends JPanel implements MouseMotionListener, MouseListener {
     @Override public void mouseReleased(MouseEvent e) {}
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseExited(MouseEvent e) {}
+    
 }
