@@ -1,4 +1,3 @@
-
 # 專題名稱：星際大戰 (Star Wars Ultimate)
 
 ## 👥 小組資訊
@@ -20,6 +19,8 @@
 
 本遊戲支援跨平台操作，請確保您的輸入法處於英文模式以獲得最佳體驗。
 
+* 示範影片:
+  * [https://youtu.be/2Mm7dJg4STw](https://youtu.be/2Mm7dJg4STw)
 * **滑鼠操作**：
   * `左鍵`：射擊單發子彈。
   * `右鍵`：同時射擊兩發擴散子彈。
@@ -48,13 +49,13 @@ graph TD
     subgraph Gaming[遊戲進行中]
         Game --> Loop[遊戲迴圈 Timer]
         Loop --> Input{偵測輸入}
-    
+  
         %% 暫停分支
         Input -- Esc --> Pause{暫停狀態?}
         Pause -- 是 --> P_Menu[暫停遮罩顯示]
         P_Menu -- L 鍵 --> Game
         P_Menu -- M 鍵 --> Menu
-    
+  
         %% 戰鬥分支
         Pause -- 否 --> Update[物理更新與碰撞判定]
         Update -- 無敵模式 A --> God[鎖定 HP 不減]
