@@ -4,7 +4,7 @@ import java.util.Random;
 public class Star {
     public double x, y, speed;
     public int size;
-    private static Random rand = new Random(); // 建議共用 Random 實例，效能較好
+    private static Random rand = new Random(); 
 
     public Star(int pw, int ph) {
         this.x = rand.nextDouble() * pw;

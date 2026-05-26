@@ -1,7 +1,7 @@
 import java.awt.*;
+import java.io.File;
 import java.util.ArrayList;
 import javax.swing.ImageIcon;
-import java.io.File;
 public class Enemy2 {
     public double x, y;
     public int size = 40;
@@ -15,7 +15,6 @@ public class Enemy2 {
     public Enemy2(double x, double y) {
         this.x = x;
         this.y = y;
-        // 載入圖片 (請確保路徑正確，或使用預設色塊)
         if (enemyImg == null) {
             enemyImg = new ImageIcon("image" + File.separator + "enemy2_8.png").getImage();
         }
